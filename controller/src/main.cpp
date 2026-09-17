@@ -6,6 +6,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
@@ -259,6 +260,14 @@ void setup() {
   xTaskCreatePinnedToCore(networkTask, "wledNetTask", 8192, nullptr, 1, nullptr, 0);
 
   connectWiFi();
+
+  // Starts the mDNS query engine so HTTPClient can resolve the ".local"
+  // hostnames in WLED_NODES; without this, .local lookups from this device
+  // are not guaranteed to work. The name given here ("wled-controller") is
+  // this device's own advertised hostname and isn't otherwise used.
+  if (!MDNS.begin("wled-controller")) {
+    Serial.println("mDNS init failed; .local node hostnames may not resolve");
+  }
 
   // Push the default (boot) state to every node.
   applyMode(currentMode);

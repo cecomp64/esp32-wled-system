@@ -48,6 +48,11 @@ active-low (pressed = LOW).
   Each mode change is pushed to every node immediately.
 - If Wi-Fi drops, the main loop reconnects automatically; state pushes are
   silently skipped while disconnected.
+- On boot, after Wi-Fi connects, the firmware calls `MDNS.begin(...)` once
+  so `.local` hostnames in `WLED_NODES` resolve reliably (without this,
+  ESP32's HTTP client isn't guaranteed to resolve `.local` names). This
+  also makes the controller itself discoverable/pingable as
+  `wled-controller.local`, though nothing currently depends on that.
 
 ## Notes
 
