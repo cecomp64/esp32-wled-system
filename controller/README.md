@@ -51,11 +51,18 @@ active-low (pressed = LOW).
 
 ## Notes
 
-- Each button/encoder event does a blocking HTTP POST to every node in
-  turn. For a handful of nodes on a local network this is fast enough to
-  feel instant; if you add many nodes and it becomes noticeably slow,
-  switch to WLED's UDP sync protocol instead (see the top-level README's
-  "Possible future extensions").
+- HTTP sends run on a dedicated FreeRTOS task pinned to the core `loop()`
+  doesn't use, fed by a small queue. Button and encoder polling (`loop()`,
+  core 1) never blocks on network I/O, so a slow or unreachable node
+  (each request can take up to `HTTP_TIMEOUT_MS`) doesn't make the knob or
+  button feel unresponsive. The queue holds a handful of pending updates
+  (`xQueueCreate(8, ...)`); if it's ever full — sustained updates faster
+  than the network task can drain them, e.g. several nodes all timing out
+  at once — the newest update is dropped and logged rather than blocking.
+  For a handful of nodes on a local network this essentially never
+  happens; if you add many nodes and drops become frequent, switch to
+  WLED's UDP sync protocol instead (see the top-level README's "Possible
+  future extensions").
 - `ENCODER_PULSES_PER_STEP` assumes a typical 4-edge-per-detent encoder;
   if a full turn's worth of clicks feels like 2x or 4x too much/too little
   brightness change, adjust this value.

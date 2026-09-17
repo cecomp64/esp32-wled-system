@@ -8,6 +8,10 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
+#include <cstring>
 
 #include "config.h"
 
@@ -81,7 +85,10 @@ bool postState(const char* host, const String& body) {
   return true;
 }
 
-// Sends the same JSON body to every configured node.
+// Sends the same JSON body to every configured node. Blocking (each node is
+// a separate HTTP round trip) — only ever called from networkTask(), never
+// from loop(), so a slow/unreachable node can't stall button/encoder
+// polling.
 void broadcastState(const String& body) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Wi-Fi not connected, skipping broadcast");
@@ -89,6 +96,43 @@ void broadcastState(const String& body) {
   }
   for (size_t i = 0; i < WLED_NODE_COUNT; i++) {
     postState(WLED_NODES[i], body);
+  }
+}
+
+// --- Background network task ---
+//
+// All HTTP sends happen on a dedicated FreeRTOS task pinned to the other
+// core, decoupled from loop() via a queue. This keeps button/encoder
+// polling responsive even when a node is slow to respond or unreachable
+// (the request can take up to HTTP_TIMEOUT_MS per node without touching
+// input latency).
+
+struct StateCommand {
+  char json[192];
+};
+
+static QueueHandle_t stateQueue = nullptr;
+
+// Enqueues a state update for the background task to send. Non-blocking:
+// if the queue is momentarily full (a burst of updates faster than the
+// network task can drain them), the update is dropped rather than
+// stalling the caller.
+void enqueueState(const String& body) {
+  StateCommand cmd;
+  strncpy(cmd.json, body.c_str(), sizeof(cmd.json) - 1);
+  cmd.json[sizeof(cmd.json) - 1] = '\0';
+
+  if (xQueueSend(stateQueue, &cmd, 0) != pdTRUE) {
+    Serial.println("state queue full, dropping update");
+  }
+}
+
+void networkTask(void* pvParameters) {
+  StateCommand cmd;
+  for (;;) {
+    if (xQueueReceive(stateQueue, &cmd, portMAX_DELAY) == pdTRUE) {
+      broadcastState(String(cmd.json));
+    }
   }
 }
 
@@ -134,13 +178,13 @@ void applyMode(Mode mode) {
   currentMode = mode;
   const char* names[MODE_COUNT] = {"RED", "WHITE", "OFF"};
   Serial.printf("Mode -> %s (bri=%u)\n", names[mode], brightness);
-  broadcastState(buildModeStateJson(mode, brightness));
+  enqueueState(buildModeStateJson(mode, brightness));
 }
 
 void applyBrightness(uint8_t bri) {
   brightness = bri;
   Serial.printf("Brightness -> %u\n", brightness);
-  broadcastState(buildBrightnessStateJson(bri));
+  enqueueState(buildBrightnessStateJson(bri));
 }
 
 // --- Button handling (polled, debounced) ---
@@ -208,6 +252,11 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_A), encoderISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_B), encoderISR, CHANGE);
+
+  stateQueue = xQueueCreate(8, sizeof(StateCommand));
+  // Pinned to core 0 (Arduino's loop() runs on core 1) so a slow/unreachable
+  // node's HTTP round trip never delays button/encoder polling.
+  xTaskCreatePinnedToCore(networkTask, "wledNetTask", 8192, nullptr, 1, nullptr, 0);
 
   connectWiFi();
 
