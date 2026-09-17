@@ -1,0 +1,40 @@
+{
+  "_readme": "Illustrative excerpt of WLED's cfg.json highlighting the fields to check per node. Exact schema varies by WLED version -- prefer setting these via the Config UI over importing this file wholesale. Edit every <PLACEHOLDER> before use.",
+  "id": {
+    "mdns": "wled-<NODE_NAME>",
+    "name": "WLED <Node Name>"
+  },
+  "nw": {
+    "ins": [
+      {
+        "ssid": "<your-ssid>",
+        "ip": [0, 0, 0, 0],
+        "gw": [0, 0, 0, 0],
+        "sn": [255, 255, 255, 0]
+      }
+    ]
+  },
+  "hw": {
+    "led": {
+      "total": 150,
+      "maxpwr": 6000,
+      "ins": [
+        {
+          "start": 0,
+          "len": 150,
+          "pin": [2],
+          "order": 1,
+          "rev": false,
+          "skip": 0,
+          "type": 22,
+          "rgbwm": 0
+        }
+      ]
+    }
+  },
+  "def": {
+    "ps": 0,
+    "on": true,
+    "bri": 128
+  }
+}

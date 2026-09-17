@@ -1,0 +1,11 @@
+# PlatformIO
+controller/.pio/
+controller/.vscode/
+.pio/
+.vscode/
+
+# Local secrets (Wi-Fi credentials, node addresses)
+controller/include/config.h
+
+# OS cruft
+.DS_Store
