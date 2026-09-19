@@ -38,8 +38,10 @@ active-low (pressed = LOW).
 
 ## Behavior
 
-- Boots into **Red** mode at `BRIGHTNESS_DEFAULT`, and pushes that state to
-  every configured node.
+- Boots into **Red** mode, and pushes that state to every configured node.
+- **Entering Red mode** (at boot, or by cycling back to it) always resets
+  brightness to `BRIGHTNESS_RED_DEFAULT` (20%), regardless of whatever
+  brightness White/Off last used.
 - **Rotating the encoder** adjusts brightness by `BRIGHTNESS_STEP` per
   detent (clamped to `BRIGHTNESS_MIN`..`BRIGHTNESS_MAX`), throttled to at
   most one HTTP push per node every `ENCODER_SEND_INTERVAL_MS` so a fast

@@ -177,6 +177,11 @@ String buildBrightnessStateJson(uint8_t bri) {
 
 void applyMode(Mode mode) {
   currentMode = mode;
+  if (mode == MODE_RED) {
+    // Red is the night-vision mode; always start it at the same
+    // brightness rather than carrying over whatever White/Off last used.
+    brightness = BRIGHTNESS_RED_DEFAULT;
+  }
   const char* names[MODE_COUNT] = {"RED", "WHITE", "OFF"};
   Serial.printf("Mode -> %s (bri=%u)\n", names[mode], brightness);
   enqueueState(buildModeStateJson(mode, brightness));

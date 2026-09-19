@@ -26,6 +26,10 @@ static const size_t WLED_NODE_COUNT = sizeof(WLED_NODES) / sizeof(WLED_NODES[0])
 #define BRIGHTNESS_MIN 8
 #define BRIGHTNESS_MAX 255
 #define BRIGHTNESS_DEFAULT 128
+// Every time Red mode is entered (including at boot, since Red is the
+// default mode), brightness resets to this value -- 20% of 255 -- rather
+// than carrying over whatever brightness was last set in another mode.
+#define BRIGHTNESS_RED_DEFAULT 51
 // Brightness change per detent. Most encoders produce 4 interrupt edges per
 // detent; adjust ENCODER_PULSES_PER_STEP if your encoder differs.
 #define BRIGHTNESS_STEP 8
