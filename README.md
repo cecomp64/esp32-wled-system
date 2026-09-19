@@ -5,13 +5,13 @@ DIY LED lighting control for an astronomical observatory, built on ESP32 + WLED.
 ## Architecture
 
 ```
-                         Wi-Fi (2.4 GHz, local network)
+                 Controller's own Wi-Fi access point (2.4 GHz)
                      ┌───────────────────────────────────┐
                      │                                    │
   ┌──────────────┐   │   HTTP POST /json/state            │
   │  Controller   │───┼──────────────► ┌────────────────┐ │
   │  ESP32        │   │                 │ WLED node #1   │ │
-  │               │───┼──────────────►  │ ESP32 + WS2815 │ │
+  │  (hosts AP)   │───┼──────────────►  │ ESP32 + WS2815 │ │
   │ - rotary      │   │                 └────────────────┘ │
   │   encoder     │───┼──────────────► ┌────────────────┐ │
   │   (brightness)│   │                 │ WLED node #2   │ │
@@ -31,8 +31,15 @@ DIY LED lighting control for an astronomical observatory, built on ESP32 + WLED.
   repo's only compiled code) that reads the encoder/button and pushes state
   changes to every WLED node over Wi-Fi using WLED's JSON API.
 
-There is no central hub/server — the controller talks directly to each WLED
-node's HTTP API. All boards must be on the same local Wi-Fi network.
+There is no central hub/server beyond the controller itself — it talks
+directly to each WLED node's HTTP API. The controller **hosts its own Wi-Fi
+access point** (SoftAP) rather than joining an existing network; every WLED
+node connects to that AP. This keeps the whole system self-contained (no
+dependency on a home router's signal reaching the observatory), at the cost
+of the nodes having no general internet access (no NTP, no cloud OTA). A
+16x20ft room is trivial range for the ESP32's SoftAP radio. See
+`controller/README.md` for the AP's default IP/credentials and
+`wled-nodes/README.md` for pointing each node at it.
 
 ## Behavior
 
@@ -79,5 +86,5 @@ wled-nodes/     WLED configuration templates + setup guide for the LED nodes
 - Replace HTTP polling-per-node with WLED's UDP sync/broadcast protocol for
   tighter multi-node sync.
 - OTA firmware updates for the controller.
-- Long-press on the encoder button for a Wi-Fi config portal
-  (e.g. WiFiManager) instead of hardcoded credentials.
+- Long-press on the encoder button for a config portal (e.g. WiFiManager)
+  to change the AP SSID/password without reflashing.

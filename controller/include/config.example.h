@@ -3,14 +3,25 @@
 // Copy this file to config.h (which is gitignored) and fill in your own
 // network and hardware details before building.
 
-// ---- Wi-Fi ----
-#define WIFI_SSID "your-ssid"
-#define WIFI_PASSWORD "your-password"
+// ---- Access point ----
+// The controller hosts its own Wi-Fi network rather than joining an
+// existing one -- WLED nodes connect to this AP directly. WPA2 requires
+// the password to be at least 8 characters. The AP comes up at the
+// ESP32 SoftAP default IP (192.168.4.1) with its own DHCP server, so
+// nodes don't need static IPs configured.
+#define AP_SSID "observatory-lighting"
+#define AP_PASSWORD "change-this-password"
+#define AP_CHANNEL 1
+// ESP32 SoftAP supports at most ~10 simultaneous stations; keep some
+// headroom above your actual node count.
+#define AP_MAX_CONNECTIONS 8
 
 // ---- WLED nodes ----
 // Hostname or IP address of every WLED node this controller should drive.
-// mDNS hostnames (the default WLED sets, e.g. "wled-<name>.local") work as
-// long as your router/network supports mDNS resolution from the ESP32.
+// Configure each node's Wi-Fi Setup to join AP_SSID/AP_PASSWORD above (not
+// your home network), and give each a unique mDNS hostname there -- see
+// wled-nodes/README.md. mDNS resolution works the same way over this
+// closed network as it would over a regular LAN.
 static const char* const WLED_NODES[] = {
     "wled-node1.local",
     "wled-node2.local",

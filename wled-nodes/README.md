@@ -26,7 +26,11 @@ plus a couple of config templates you can adapt.
    [web installer](https://install.wled.me) (Chrome/Edge, USB) or
    `esptool.py` with a downloaded `.bin` for the `esp32` target.
 2. On first boot, WLED starts an AP named `WLED-AP` — connect to it and
-   enter your Wi-Fi credentials so the node joins your local network.
+   enter the **controller's** access point credentials (`AP_SSID`/
+   `AP_PASSWORD` from `controller/include/config.h`), not your home
+   network. The controller must already be powered on and running its
+   firmware for the node to join it. The node gets an IP from the
+   controller's DHCP server (in the `192.168.4.x` range).
 3. Open the node's IP (or `http://wled-<name>.local` if mDNS resolves on
    your network) and go to **Config > LED Preferences**:
    - LED count: match your strip.
@@ -39,11 +43,16 @@ plus a couple of config templates you can adapt.
      doesn't let you overdrive the wiring.
 4. **Config > WiFi Setup**: set a unique, memorable hostname (e.g.
    `wled-node1`), matching what you put in the controller's
-   `WLED_NODES` list. Enable mDNS if your network supports it.
+   `WLED_NODES` list. Enable mDNS if your network supports it — it works
+   the same way on the controller's AP network as it would on a home LAN.
 5. **Config > Security & Updates**: consider disabling OTA if not needed,
    and set an admin password if the network isn't fully trusted.
 
 Repeat for each node, giving each a distinct hostname.
+
+Note: since the controller's AP is the only network here, nodes have no
+path to the internet — WLED's own OTA-from-URL and NTP time sync won't
+work. Neither is needed for the controller/node flows this repo uses.
 
 ## Config templates
 

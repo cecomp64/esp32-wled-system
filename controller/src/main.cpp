@@ -47,16 +47,23 @@ void IRAM_ATTR encoderISR() {
 }
 
 // --- Networking ---
+//
+// The controller hosts its own access point rather than joining an
+// existing network: WLED nodes connect directly to it. This keeps the
+// whole system self-contained (no dependency on a router being reachable
+// out at the observatory) at the cost of the nodes having no general
+// internet access. ESP32 SoftAP defaults to IP 192.168.4.1 with its own
+// DHCP server, so nodes just need AP_SSID/AP_PASSWORD -- no static IPs to
+// assign by hand.
 
-void connectWiFi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.printf("Connecting to Wi-Fi \"%s\"", WIFI_SSID);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
-    Serial.print(".");
+void startAccessPoint() {
+  WiFi.mode(WIFI_AP);
+  bool ok = WiFi.softAP(AP_SSID, AP_PASSWORD, AP_CHANNEL, /*hidden=*/false, AP_MAX_CONNECTIONS);
+  if (!ok) {
+    Serial.println("Failed to start access point!");
+    return;
   }
-  Serial.printf("\nConnected, IP: %s\n", WiFi.localIP().toString().c_str());
+  Serial.printf("Access point \"%s\" up, IP: %s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
 }
 
 // Sends a JSON body (already serialized) to a single node's /json/state
@@ -89,12 +96,11 @@ bool postState(const char* host, const String& body) {
 // Sends the same JSON body to every configured node. Blocking (each node is
 // a separate HTTP round trip) — only ever called from networkTask(), never
 // from loop(), so a slow/unreachable node can't stall button/encoder
-// polling.
+// polling. Per-node failures (including "no node connected yet") are
+// logged by postState() and otherwise ignored; there's no overall
+// connectivity gate to check first since the controller is its own
+// access point.
 void broadcastState(const String& body) {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Wi-Fi not connected, skipping broadcast");
-    return;
-  }
   for (size_t i = 0; i < WLED_NODE_COUNT; i++) {
     postState(WLED_NODES[i], body);
   }
@@ -264,25 +270,25 @@ void setup() {
   // node's HTTP round trip never delays button/encoder polling.
   xTaskCreatePinnedToCore(networkTask, "wledNetTask", 8192, nullptr, 1, nullptr, 0);
 
-  connectWiFi();
+  startAccessPoint();
 
   // Starts the mDNS query engine so HTTPClient can resolve the ".local"
   // hostnames in WLED_NODES; without this, .local lookups from this device
   // are not guaranteed to work. The name given here ("wled-controller") is
-  // this device's own advertised hostname and isn't otherwise used.
+  // this device's own advertised hostname and isn't otherwise used. mDNS
+  // operates fine over the AP interface, same as it would over a joined
+  // network.
   if (!MDNS.begin("wled-controller")) {
     Serial.println("mDNS init failed; .local node hostnames may not resolve");
   }
 
-  // Push the default (boot) state to every node.
+  // Push the default (boot) state to every node. Nodes that haven't
+  // connected to the AP yet will simply miss this and pick up the next
+  // state change (mode press or brightness turn) once they're online.
   applyMode(currentMode);
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
-  }
-
   handleButton();
   handleEncoder();
 

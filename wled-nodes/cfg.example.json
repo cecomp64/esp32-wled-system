@@ -7,7 +7,7 @@
   "nw": {
     "ins": [
       {
-        "ssid": "<your-ssid>",
+        "ssid": "<controller-AP_SSID>",
         "ip": [0, 0, 0, 0],
         "gw": [0, 0, 0, 0],
         "sn": [255, 255, 255, 0]

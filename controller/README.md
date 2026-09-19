@@ -2,7 +2,9 @@
 
 PlatformIO firmware for the observatory lighting controller: a standalone
 ESP32 wired to a rotary encoder (with integrated push-button) that drives
-one or more WLED nodes over Wi-Fi via WLED's JSON HTTP API.
+one or more WLED nodes over Wi-Fi via WLED's JSON HTTP API. The controller
+hosts its own Wi-Fi access point (it does not join an existing network) --
+WLED nodes connect to it directly.
 
 ## Wiring
 
@@ -20,8 +22,8 @@ active-low (pressed = LOW).
 
 ## Setup
 
-1. Copy the example config and fill in your Wi-Fi credentials and the
-   hostname/IP of every WLED node to control:
+1. Copy the example config and fill in your access point SSID/password and
+   the hostname/IP of every WLED node to control:
 
    ```sh
    cp include/config.example.h include/config.h
@@ -36,6 +38,10 @@ active-low (pressed = LOW).
    pio device monitor
    ```
 
+3. Flash/configure each WLED node to join the AP you just set (see
+   `wled-nodes/README.md`) instead of your home network. The controller
+   comes up at `192.168.4.1` (the ESP32 SoftAP default) once it boots.
+
 ## Behavior
 
 - Boots into **Red** mode, and pushes that state to every configured node.
@@ -48,12 +54,17 @@ active-low (pressed = LOW).
   spin doesn't flood the network.
 - **Pressing the button** cycles mode: `Red` → `White` → `Off` → `Red` ...
   Each mode change is pushed to every node immediately.
-- If Wi-Fi drops, the main loop reconnects automatically; state pushes are
-  silently skipped while disconnected.
-- On boot, after Wi-Fi connects, the firmware calls `MDNS.begin(...)` once
-  so `.local` hostnames in `WLED_NODES` resolve reliably (without this,
-  ESP32's HTTP client isn't guaranteed to resolve `.local` names). This
-  also makes the controller itself discoverable/pingable as
+- On boot, the firmware starts its own access point (`AP_SSID`/
+  `AP_PASSWORD` in `config.h`) rather than joining an existing network.
+  There's no reconnect logic to worry about the way there would be for a
+  station joining someone else's Wi-Fi; the AP just stays up. A node that
+  isn't connected yet (or drops off) simply misses updates until it
+  reconnects and gets the next mode/brightness change.
+- After the AP comes up, the firmware calls `MDNS.begin(...)` once so
+  `.local` hostnames in `WLED_NODES` resolve reliably (without this,
+  ESP32's HTTP client isn't guaranteed to resolve `.local` names) -- this
+  works the same way over the AP's own network as it would over a joined
+  one. This also makes the controller itself discoverable/pingable as
   `wled-controller.local`, though nothing currently depends on that.
 
 ## Notes
@@ -73,3 +84,7 @@ active-low (pressed = LOW).
 - `ENCODER_PULSES_PER_STEP` assumes a typical 4-edge-per-detent encoder;
   if a full turn's worth of clicks feels like 2x or 4x too much/too little
   brightness change, adjust this value.
+- ESP32 SoftAP supports at most ~10 simultaneous stations (hardware
+  limit). `AP_MAX_CONNECTIONS` in `config.h` defaults to 8; if you have
+  more WLED nodes than that, raise it (up to ~10) or split nodes across
+  more than one AP.
